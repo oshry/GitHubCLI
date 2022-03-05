@@ -5,31 +5,38 @@ Copyright © Oshry Levy
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/spf13/cobra"
 	"githubCLI/models"
 	"githubCLI/utils"
+	"log"
 	"net/http"
 )
 
+// downloadsCmd represents the downloads command
 var downloadsCmd = &cobra.Command{
 	Use:   "downloads",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Present the entire downloads for each asset",
+	Long: `Github ApI: 
+Present the entire downloads for each asset`,
 	Run: func(cmd *cobra.Command, args []string) {
+		var req *http.Request
+		var ReleaseObj []models.ReleaseObj
+		var Contributions []models.Contributions
+		var Repository models.Repository
+
 		repo, _ := cmd.Flags().GetString("repo")
 		output, _ := cmd.Flags().GetString("output")
 		login, _ := cmd.Flags().GetString("login")
 		password, _ := cmd.Flags().GetString("password")
 		token, _ := cmd.Flags().GetString("token")
 		command := "releases"
-		var req *http.Request
-		var ReleaseObj []models.ReleaseObj
+
+		if len(repo) == 0 {
+			log.Fatal("No repository provided")
+		}
+
 		r := models.RunCmd{
 			command,
 			repo,
@@ -44,11 +51,19 @@ to quickly create a Cobra application.`,
 			},
 			req,
 			ReleaseObj,
+			Repository,
+			0,
+			0,
+			Contributions,
+			0,
+			"",
 		}
 
 		r.GithubApiPrepareReq()
-		r.HttpExecuteReq()
-		r.ParseResponse()
+		if err := json.Unmarshal(r.HttpExecuteReq(), &r.ReleaseObj); err != nil {
+			fmt.Printf("Could not unmarshal reponseBytes. %v", err)
+		}
+		r.ParseDownloadResponse()
 	},
 }
 

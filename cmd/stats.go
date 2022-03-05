@@ -5,7 +5,12 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"githubCLI/models"
+	"githubCLI/utils"
+	"log"
+	"net/http"
 
 	"github.com/spf13/cobra"
 )
@@ -13,28 +18,65 @@ import (
 // statsCmd represents the stats command
 var statsCmd = &cobra.Command{
 	Use:   "stats",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Present the stats of the repo (stars, forks, language, contributors)",
+	Long: `Github ApI: 
+Present the stats of the repo (stars, forks, language, contributors)`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("stats called")
+		var req *http.Request
+		var ReleaseObj []models.ReleaseObj
+		var Contributions []models.Contributions
+		var Repository models.Repository
+
+		repo, _ := cmd.Flags().GetString("repo")
+		output, _ := cmd.Flags().GetString("output")
+		login, _ := cmd.Flags().GetString("login")
+		password, _ := cmd.Flags().GetString("password")
+		token, _ := cmd.Flags().GetString("token")
+		command := ""
+
+		if len(repo) == 0 {
+			log.Fatal("No repository provided")
+		}
+
+		r := models.RunCmd{
+			command,
+			repo,
+			output,
+			models.HttpObj{
+				fmt.Sprintf("https://api.github.com/repos/%s", repo),
+				models.Secure{
+					Login:    login,
+					Password: password,
+					Token:    token,
+				},
+			},
+			req,
+			ReleaseObj,
+			Repository,
+			0,
+			0,
+			Contributions,
+			0,
+			"",
+		}
+
+		r.GithubApiPrepareReq()
+		if err := json.Unmarshal(r.HttpExecuteReq(), &r.Repository); err != nil {
+			fmt.Printf("Could not unmarshal reponseBytes. %v", err)
+		}
+		//r.HttpExecuteReq()
+		r.Cmd = "contributors"
+		r.HttpObj.Url = fmt.Sprintf("https://api.github.com/repos/%s/%s", repo, r.Cmd)
+		r.GithubApiPrepareReq()
+		if err := json.Unmarshal(r.HttpExecuteReq(), &r.Contributors); err != nil {
+			fmt.Printf("Could not unmarshal reponseBytes. %v", err)
+		}
+
+		r.ParseStatsResponse()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(statsCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// statsCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// statsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	utils.GetFlags(statsCmd)
 }
